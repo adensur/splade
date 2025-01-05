@@ -73,6 +73,11 @@ class DataTrainingArguments:
         default=None
     )
 
+    val_data_path: Optional[str] = field(
+        metadata={"help": "Path to validation file"},
+        default=None
+    )
+
     document_dir: str = field(
         metadata={"help": "Path to collection file"},
         default=None

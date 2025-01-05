@@ -112,10 +112,8 @@ class IRTrainer(BaseTrainer):
             self.cls_id = self.tokenizer.vocab[self.cls_token]
             self.sep_id = self.tokenizer.vocab[self.sep_token]
             self.mask_id = self.tokenizer.vocab[self.mask_token]
-
-
-
-    def log(self, logs: Dict[str, float]) -> None:
+    
+    def log2(self, logs: Dict[str, float]) -> None:
         """
         Log `logs` on the various objects watching training.
         Subclass and override this method to inject custom behavior.
@@ -155,7 +153,7 @@ class IRTrainer(BaseTrainer):
         self.lambda_t_q = min(self.lambda_q, self.lambda_q * ((self.step) / (self.T_q+1)) ** 2)
 
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         How the loss is computed by Trainer. By default, all models return the loss in the first element.
         Subclass and override for custom behavior.
@@ -258,6 +256,13 @@ class IRTrainer(BaseTrainer):
             return loss
         else:
             return loss, [(queries, docs)]
+
+    def prediction_step(self, model, inputs, prediction_loss_only, ignore_keys=None):
+        inputs = self._prepare_inputs(inputs)
+        with torch.no_grad():
+            loss, _ = self.compute_loss(model, inputs, return_outputs=True)
+
+        return (loss, None, None)
 
 
 

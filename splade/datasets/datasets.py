@@ -34,6 +34,33 @@ class PairsDatasetPreLoad(Dataset):
     def __getitem__(self, idx):
         return self.data_dict[idx]
 
+class PairsJsonDatasetPreLoad(Dataset):
+    """
+    dataset to iterate over a collection of pairs, format per line: q \t d_pos \t d_neg
+    we preload everything in memory at init
+    """
+
+    def __init__(self, data_file):
+        self.data_file = data_file
+        self.id_style = "row_id"
+
+        self.data_dict = {}  # => dict that maps the id to the line offset (position of pointer in the file)
+        print("Preloading dataset")
+        self.data_file = os.path.join(self.data_file)
+        with open(self.data_file) as reader:
+            for i, line in enumerate(tqdm(reader)):
+                if len(line) > 1:
+                    js = json.loads(line)
+                    query, pos, neg = js["query"], js["pos_doc"], js["neg_doc"][0]
+                    self.data_dict[i] = (query.strip(), pos.strip(), neg.strip())
+        self.nb_ex = len(self.data_dict)
+
+    def __len__(self):
+        return self.nb_ex
+
+    def __getitem__(self, idx):
+        return self.data_dict[idx]
+
 
 class DistilPairsDatasetPreLoad(Dataset):
     """

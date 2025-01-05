@@ -72,6 +72,7 @@ class SPLADE(torch.nn.Module):
         self._keys_to_ignore_on_load_missing = None
         
         self.shared_weights = shared_weights       
+        print("Initializing model from {}".format(model_type_or_dir))
         self.doc_encoder = AutoModelForMaskedLM.from_pretrained(model_type_or_dir)
         
         self.output_dim=self.doc_encoder.config.vocab_size

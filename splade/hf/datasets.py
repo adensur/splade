@@ -46,6 +46,43 @@ class DatasetPreLoad():
         else:
             return str(idx), self.data_dict[str(idx)]
 
+class JsonlDataset(Dataset):
+    def __init__(self, data_path, n_negatives):
+        self.data_path = data_path
+        self.n_negatives = n_negatives
+        self.data = []
+        print(f"Loading {self.data_path} with {self.n_negatives} negatives")
+        skipped_lines = 0
+        
+        files_to_process = []
+        if os.path.isdir(self.data_path):
+            files_to_process = [os.path.join(self.data_path, f) 
+                              for f in os.listdir(self.data_path) 
+                              if f.endswith('.jsonl')]
+        else:
+            files_to_process = [self.data_path]
+            
+        for filepath in files_to_process:
+            with open(filepath, 'r') as file:
+                filename = os.path.basename(filepath)
+                for line in tqdm(file, desc=f"Loading {filename}"):
+                    try:
+                        js = json.loads(line)
+                    except json.JSONDecodeError:
+                        skipped_lines += 1
+                        continue
+                    q = js["query"]
+                    pos_doc = js["pos_doc"]
+                    neg_docs = js["neg_doc"]
+                    self.data.append(([q, pos_doc] + neg_docs[:self.n_negatives]))
+        
+        print(f"Skipped {skipped_lines} lines")
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        return self.data[idx], torch.zeros(self.n_negatives + 1)
 
 class L2I_Dataset(Dataset): 
     """ 

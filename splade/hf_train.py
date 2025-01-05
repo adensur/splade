@@ -10,11 +10,12 @@ from conf.CONFIG_CHOICE import CONFIG_NAME, CONFIG_PATH
 
 from transformers import AutoTokenizer
 from transformers.trainer_utils import get_last_checkpoint
+from transformers import TrainingArguments
 from dataclasses import asdict
 
 from splade.hf.trainers import IRTrainer
 from splade.hf.collators import L2I_Collator
-from splade.hf.datasets import L2I_Dataset, TRIPLET_Dataset
+from splade.hf.datasets import L2I_Dataset, TRIPLET_Dataset, JsonlDataset
 from splade.hf.models import  SPLADE, DPR
 from splade.hf.convertl2i2hf import convert
 from splade.utils.utils import get_initialize_config
@@ -44,7 +45,9 @@ def hf_train(exp_dict: DictConfig):
     # load the dataset
     data_collator= L2I_Collator(tokenizer=tokenizer,max_length=model_args.max_length)
     if data_args.training_data_type == 'triplets':
-         dataset = TRIPLET_Dataset(data_dir=data_args.training_data_path)
+        dataset = TRIPLET_Dataset(data_dir=data_args.training_data_path)
+    elif data_args.training_data_type == 'jsonl':
+        dataset = JsonlDataset(data_path=data_args.training_data_path, n_negatives=data_args.n_negatives)
     else:
         dataset = L2I_Dataset(training_data_type=data_args.training_data_type, # training file type
                               training_file_path=data_args.training_data_path, # path to training file
@@ -55,16 +58,28 @@ def hf_train(exp_dict: DictConfig):
                               nqueries=data_args.n_queries,                    # consider only a subset of <nqueries> queries
                               )
 
-    
+    if data_args.training_data_type == 'jsonl':
+        val_dataset = JsonlDataset(data_path=data_args.val_data_path, n_negatives=data_args.n_negatives)
+    else:
+        val_dataset = None
+
+    training_args.report_to = ["wandb"]
+    training_args.eval_strategy = "steps" if val_dataset is not None else "no"
+    training_args.save_strategy = "epoch"
+
+
+    print("Final training args", training_args)
     trainer = IRTrainer(model=model,                         # the instantiated 🤗 Transformers model to be trained
                         args=training_args,                  # training arguments, defined above
                         train_dataset=dataset,
+                        eval_dataset=val_dataset,
                         data_collator=data_collator.torch_call,
                         tokenizer=tokenizer,
                         shared_weights=model_args.shared_weights,  # query and document model shared or not
                         splade_doc=model_args.splade_doc,          # model is a spladedoc model
                         n_negatives=data_args.n_negatives,         # nb negatives in batch 
-                        dense=model_args.dense)                    # is the model dense or not (DPR or SPLADE)
+                        dense=model_args.dense,                    # is the model dense or not (DPR or SPLADE)
+                    )                    
     
     last_checkpoint = None
     if training_args.resume_from_checkpoint: #os.path.isdir(training_args.output_dir) and  not training_args.overwrite_output_dir:
@@ -81,7 +96,7 @@ def hf_train(exp_dict: DictConfig):
 
     #trainer.create_model_card()   # need .config
     
-    if  trainer.is_world_process_zero():
+    if trainer.is_world_process_zero():
         with open(os.path.join(final_path, "model_args.json"), "w") as write_file:
             json.dump(asdict(model_args), write_file, indent=4)
         with open(os.path.join(final_path, "data_args.json"), "w") as write_file:

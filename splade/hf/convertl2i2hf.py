@@ -45,6 +45,7 @@ def convert(exp_dict):
 
     # ad tokenizer to model_args ?
     m.tokenizer_name_or_path = config.tokenizer_type
+    print("Tokenizer type", config.tokenizer_type)
     # try:
     #     m.adapter_name = config.adapter_name
     #     m.adapter_config = config.adapter_config
@@ -85,9 +86,14 @@ def convert(exp_dict):
             d.document_dir = os.path.join(data.TRAIN.D_COLLECTION_PATH,'raw.tsv') 
             d.query_dir = os.path.join(data.TRAIN.Q_COLLECTION_PATH,'raw.tsv')
             d.qrels_path = data.TRAIN.QREL_PATH
+        elif data.type == "jsonl":
+            t.training_loss = "contrastive"
+            d.training_data_path = data.TRAIN.DATASET_PATH
+            d.training_data_type = "jsonl"
+            d.val_data_path = data.VALIDATION.DATASET_PATH
         
 
-    assert d.training_data_type in ['saved_pkl','pkl_dict','trec','json','triplets']
+    assert d.training_data_type in ['saved_pkl','pkl_dict','trec','json','triplets', "jsonl"]
     
 
     ############  training ############
@@ -99,7 +105,9 @@ def convert(exp_dict):
             setattr(t,k, hf.training[k])
     
     #will overwrite default/hf.yaml values    
-    t.output_dir =  config.checkpoint_dir  
+    t.output_dir =  config.checkpoint_dir
+    t.eval_steps = hf.training.logging_steps
+    print("Eval steps", t.eval_steps)
     t.fp16=config.get("fp16",True)
     if 'lr' in config: t.learning_rate = config.lr
     if 'train_batch_size' in config:t.per_device_train_batch_size =config.train_batch_size

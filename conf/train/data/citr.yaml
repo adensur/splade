@@ -1,0 +1,8 @@
+# @package data
+
+type: jsonl
+TRAIN:
+  DATASET_PATH: /traindata/datasets/embeddings/splade/mgaiduk/v0/splade_v0_5m_train
+
+VALIDATION:
+  DATASET_PATH: /traindata/datasets/embeddings/splade/mgaiduk/v0/splade_v0_5k_val/1pos8randneg.jsonl
